@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de caminata · Infancias olvidadas</title>
+  <script src="./contenido.js" defer></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #cecece; color: #111; font: 1rem/1.4 system-ui, sans-serif; }
+    main { max-width: 60rem; margin-inline: auto; padding: 1.25rem 0.75rem; }
+    h1 { margin: 0 0 0.75rem; font-size: clamp(1.2rem, 4vw, 1.8rem); }
+    .muestras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
+    figure { margin: 0; text-align: center; }
+    img { display: block; width: 100%; height: auto; }
+    figcaption { border-top: 1px solid #4d4d4d; padding-block: 0.5rem; }
+    button { min-height: 44px; padding: 0.3rem 0.9rem; font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; }
+    [role="status"] { margin: 0.75rem 0 0; }
+    [role="status"]:empty { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Prueba de caminata</h1>
+    <div class="muestras">
+      <figure data-fps="8"><img width="700" height="1652" alt="Ciclo de caminata a 8 cuadros por segundo"><figcaption>8 fps</figcaption></figure>
+      <figure data-fps="10"><img width="700" height="1652" alt="Ciclo de caminata a 10 cuadros por segundo"><figcaption>10 fps</figcaption></figure>
+      <figure data-fps="12"><img width="700" height="1652" alt="Ciclo de caminata a 12 cuadros por segundo"><figcaption>12 fps</figcaption></figure>
+    </div>
+    <button type="button" id="reproduccion" disabled>Pausar</button>
+    <p role="status" id="estado">Cargando cuadros…</p>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { archivos } = PERSONAJE.cuadros.caminando;
+      const comparaciones = [...document.querySelectorAll('figure[data-fps]')].map(figura => ({
+        imagen: figura.querySelector('img'),
+        fps: Number(figura.dataset.fps),
+      }));
+      const control = document.querySelector('#reproduccion');
+      const estado = document.querySelector('#estado');
+      const preferencia = matchMedia('(prefers-reduced-motion: reduce)');
+      let activo = !preferencia.matches;
+      let previo, tiempo = 0, solicitud;
+      const cuadros = archivos.map(ruta => {
+        const imagen = new Image();
+        imagen.src = ruta;
+        return imagen;
+      });
+      try {
+        await Promise.all(cuadros.map(imagen => imagen.decode()));
+      } catch {
+        estado.textContent = 'No se pudieron cargar los cuadros de caminata.';
+        return;
+      }
+
+      function dibujar(ahora) {
+        if (previo !== undefined) tiempo += ahora - previo;
+        previo = ahora;
+        for (const { imagen, fps } of comparaciones) {
+          const ruta = archivos[Math.floor(tiempo * fps / 1000) % archivos.length];
+          if (imagen.getAttribute('src') !== ruta) imagen.src = ruta;
+        }
+        if (activo && !document.hidden) solicitud = requestAnimationFrame(dibujar);
+      }
+      function sincronizar() {
+        cancelAnimationFrame(solicitud);
+        previo = undefined;
+        control.textContent = activo ? 'Pausar' : 'Reproducir';
+        dibujar(performance.now());
+      }
+      control.addEventListener('click', () => {
+        activo = !activo;
+        sincronizar();
+      });
+      preferencia.addEventListener('change', () => {
+        activo = !preferencia.matches;
+        sincronizar();
+      });
+      document.addEventListener('visibilitychange', sincronizar);
+      control.disabled = false;
+      estado.textContent = '';
+      sincronizar();
+    });
+  </script>
+</body>
+</html>

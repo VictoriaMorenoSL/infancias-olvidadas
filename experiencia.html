@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Infografía interactiva sobre el reclutamiento forzado infantil por el crimen organizado en México.">
+  <title>Infancias olvidadas</title>
+  <script>
+    if (new URLSearchParams(location.search).get('entrada') === 'portada' &&
+      matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+      document.documentElement.classList.add('entrada-desde-portada');
+    }
+    if (matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+      const fases = ['presentando-personaje', 'esperando-relato', 'esperando-ilustracion', 'esperando-nudo', 'esperando-controles'];
+      document.documentElement.classList.add(...fases);
+      setTimeout(() => {
+        if (!document.querySelector('#recorrido[data-jugable]')) document.documentElement.classList.remove(...fases);
+      }, 3600);
+    }
+  </script>
+  <link rel="stylesheet" href="https://use.typekit.net/vxp0lil.css">
+  <link rel="stylesheet" href="./estilos.css">
+  <script src="./transicion-portada.js" defer></script>
+  <script src="./contenido.js" defer></script>
+  <script src="./hilo-revelado.js" defer></script>
+  <script src="./personaje.js" defer></script>
+  <script src="./final.js" defer></script>
+  <script src="./experiencia.js" defer></script>
+</head>
+<body class="pagina-experiencia">
+  <main class="infografia">
+    <section class="recorrido" id="recorrido" tabindex="0" aria-labelledby="titulo-recorrido" aria-describedby="ayuda-juego">
+      <div class="vineta-final" aria-hidden="true"></div>
+      <div class="campo-dolor" aria-hidden="true">
+        <div class="destello-dolor" hidden></div>
+      </div>
+      <h1 id="titulo-recorrido">
+        <span class="solo-lectura">Inicio del recorrido</span>
+        <img class="titulo" src="./assets/textos_infografia/titulo.svg" width="251" height="92" alt="">
+      </h1>
+
+      <p id="ayuda-juego" class="solo-lectura">Usa las flechas izquierda y derecha para caminar. Pulsa flecha arriba o Espacio para saltar. Acércate al nudo y pulsa Enter para deshacerlo.</p>
+
+      <div class="nino-recorrido">
+        <img class="dibujo-personaje" draggable="false" src="./assets/Imgs/nin%CC%83o.PNG" width="700" height="1652" alt="" fetchpriority="high">
+      </div>
+    </section>
+  </main>
+
+  <div class="controles-juego" role="group" aria-label="Controles del personaje">
+    <p class="ayuda-teclado" hidden></p>
+    <p class="aviso-juego" role="status"></p>
+    <p class="solo-lectura" id="aviso-nudo" role="status"></p>
+    <div class="controles-direccion">
+      <button type="button" data-control="izquierda" aria-label="Caminar a la izquierda">←</button>
+      <button type="button" data-control="derecha" aria-label="Caminar a la derecha">→</button>
+    </div>
+    <button type="button" data-control="salto" aria-label="Saltar">↑</button>
+  </div>
+
+  <template id="plantilla-escena">
+    <article class="escena">
+      <h2 class="solo-lectura"></h2>
+      <div class="escena-inicio">
+        <button class="nudo" type="button" aria-haspopup="dialog" aria-controls="ventana-nudo" aria-keyshortcuts="Enter">
+          <span class="indicacion-nudo" aria-hidden="true"></span>
+          <img class="nudo-fijo" width="320" height="306" alt="" loading="lazy">
+        </button>
+      </div>
+      <div class="escena-relato">
+        <div class="relato">
+          <p data-plataforma></p>
+          <figure class="ilustracion">
+            <img class="fija" width="640" height="360" loading="lazy" decoding="async">
+          </figure>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <dialog class="ventana" id="ventana-nudo" aria-labelledby="titulo-ventana">
+    <div class="ventana-interior">
+      <div class="ventana-cabecera">
+        <form method="dialog"><button class="cerrar" type="submit" aria-label="Cerrar tarjeta" autofocus>×</button></form>
+      </div>
+      <div class="dato" tabindex="0"></div>
+    </div>
+  </dialog>
+</body>
+</html>
