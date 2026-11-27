@@ -166,7 +166,7 @@ function prepararAudioExperiencia(sonidos) {
     if (turno === turnoEfecto) soltarEfecto();
   }
 
-  async function reproducirEfecto(ruta, origen, volumen, inmediato = false) {
+  async function reproducirEfecto(ruta, origen, volumen, inmediato = false, sigueEnEscena = () => true) {
     if (!ruta || !enRecorrido || !desbloquear()) return false;
     const turno = ++turnoEfecto;
     pendiente = origen;
@@ -177,10 +177,10 @@ function prepararAudioExperiencia(sonidos) {
     if (turno !== turnoEfecto) return false;
     // El efecto anterior ya bajó a cero. El nudo entra en el cuadro de inicio de su animación.
     soltarEfecto();
-    const vigente = () => turno === turnoEfecto && enRecorrido;
+    const vigente = () => turno === turnoEfecto && enRecorrido && sigueEnEscena();
     const voz = await reproducir(ruta, canales.efectos, { vigente });
     if (!voz) {
-      if (vigente()) pendiente = null;
+      if (turno === turnoEfecto) pendiente = null;
       return false;
     }
     if (!vigente()) {

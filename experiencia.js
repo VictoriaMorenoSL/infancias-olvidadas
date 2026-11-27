@@ -294,6 +294,7 @@ function construirEscena(escena, indice) {
       articulo,
       grande: Boolean(escena.nudoGrande),
       sonido: escena.sonido,
+      sonidoEnEscenaActiva: escena.sonidoEnEscenaActiva,
       volumenSonido: escena.volumenSonido ?? 0.45,
       encuadre: { ...encuadres[id], espejo },
       boton,
@@ -403,7 +404,9 @@ function abrirDato(nudo) {
   mostrarDato(nudo);
   ventana.showModal();
   ventana.querySelector('.dato').scrollTop = 0;
-  if (nudo.sonido) audio.reproducirEfecto(nudo.sonido, 'tarjeta', nudo.volumenSonido);
+  if (nudo.sonido && (!nudo.sonidoEnEscenaActiva || jugador.apoyo === nudo.apoyo)) {
+    audio.reproducirEfecto(nudo.sonido, 'tarjeta', nudo.volumenSonido);
+  }
   else audio.detenerEfecto(0.6);
 }
 
@@ -779,6 +782,7 @@ function avanzar(tiempo) {
   const presionadas = [...entradas.values()];
   const direccion = Number(presionadas.includes('derecha')) - Number(presionadas.includes('izquierda'));
   const xAnterior = jugador.x;
+  const apoyoAnterior = jugador.apoyo;
   const limite = area.superficies.find(piso => piso.nudo === jugador.limite);
   const xDeseada = jugador.x + direccion * area.paso * delta;
   jugador.x = limitar(xDeseada, limite?.topeIzquierdo ?? area.anchoPersonaje / 2,
@@ -817,6 +821,7 @@ function avanzar(tiempo) {
   }
 
   marcarEntradaFinal();
+  if (jugador.apoyo !== apoyoAnterior) actualizarEfectosEscena();
   const vx = delta ? (jugador.x - xAnterior) / delta : 0;
   presentacionPersonaje.actualizar(vx, jugador.velocidadY, Boolean(jugador.apoyo), area.paso);
   const movio = xAnterior !== jugador.x || enAire;
@@ -846,6 +851,7 @@ function activarControl(id, accion) {
     const distancia = jugador.pies - area.altoPersonaje;
     jugador.velocidadY = -Math.min(area.salto, Math.sqrt(2 * area.gravedad * distancia));
     jugador.apoyo = null;
+    actualizarEfectosEscena();
   }
   programarFotograma();
 }
@@ -1231,21 +1237,26 @@ const escenasEscuchadas = new Set();
 const escenasSonorasPendientes = new Set();
 let ultimaEscenaSonora;
 
+function sonidoDentroDeEscena({ figura, articulo, nudo }) {
+  return figurasVisibles.has(figura) && !articulo.hidden && articulo.dataset.lectura !== 'hilo' &&
+    (!nudo.sonidoEnEscenaActiva || jugador.apoyo === nudo.apoyo || jugador.limite === nudo);
+}
+
 function actualizarEfectosEscena() {
   const elegibles = !document.hidden && !ventana.open && !presentandoFinal && !nudoEnCurso &&
     !documento.classList.contains('esperando-ilustracion') && !tensado;
-  if (ultimaEscenaSonora && (!figurasVisibles.has(ultimaEscenaSonora.figura) || ultimaEscenaSonora.articulo.hidden)) {
-    audio.detenerEfecto(0.6, ultimaEscenaSonora);
+  if (ultimaEscenaSonora && !sonidoDentroDeEscena(ultimaEscenaSonora)) {
+    audio.detenerEfecto(ultimaEscenaSonora.nudo.sonidoEnEscenaActiva ? 0 : 0.6, ultimaEscenaSonora);
     ultimaEscenaSonora = undefined;
   }
   if (!elegibles || !audio.puedeSonar) return;
-  const escena = escenas.find(({ figura, articulo, nudo }) => figurasVisibles.has(figura) &&
-    !articulo.hidden && articulo.dataset.lectura !== 'hilo' && nudo.sonido &&
-    !escenasEscuchadas.has(articulo) && !escenasSonorasPendientes.has(articulo));
+  const escena = escenas.find(candidata => candidata.nudo.sonido && sonidoDentroDeEscena(candidata) &&
+    !escenasEscuchadas.has(candidata.articulo) && !escenasSonorasPendientes.has(candidata.articulo));
   if (!escena) return;
   escenasSonorasPendientes.add(escena.articulo);
   ultimaEscenaSonora = escena;
-  audio.reproducirEfecto(escena.nudo.sonido, escena, escena.nudo.volumenSonido).then(reproducido => {
+  audio.reproducirEfecto(escena.nudo.sonido, escena, escena.nudo.volumenSonido, false,
+    () => sonidoDentroDeEscena(escena) && !ventana.open && !nudoEnCurso && !presentandoFinal).then(reproducido => {
     escenasSonorasPendientes.delete(escena.articulo);
     if (reproducido) escenasEscuchadas.add(escena.articulo);
   });

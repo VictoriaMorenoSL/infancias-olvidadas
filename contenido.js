@@ -79,6 +79,7 @@ const CONTENIDO = (() => {
     {
       id: "escena-2",
       sonido: "./assets/audios/guardia.mp3",
+      sonidoEnEscenaActiva: true,
       volumenSonido: 0.65,
       titulo: "Castigos",
       lado: "izquierda",
