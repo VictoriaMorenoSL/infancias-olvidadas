@@ -711,7 +711,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
   font-variation-settings: "wght" 700, "SEIS" var(--final-seis);
   line-height: 1;
 }
-.final-rango { display: block; }
+.final-rango { display: block; margin-block: .15em .22em; }
+.final-estimacion {
+  display: block;
+  max-inline-size: 36ch;
+  margin-inline: auto;
+  text-wrap: balance;
+}
 .final-reflexion[open] { grid-template: minmax(0, 1fr) / minmax(0, 1fr); align-items: center; }
 .final-reflexion .final-campo { position: absolute; inset: 0; margin: auto; opacity: .15; }
 .final-reflexion .final-panel {

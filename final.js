@@ -171,7 +171,7 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido, audio, bot
         const rango = elemento('span', 'final-rango');
         rango.append(elemento('strong', 'final-cifra', formatear(minimo)), enlaceCifras,
           elemento('strong', 'final-cifra', formatear(maximo)));
-        mensaje.append(rango, formatear(resto));
+        mensaje.append(rango, elemento('span', 'final-estimacion', formatear(resto)));
       }
       texto.append(mensaje);
     }

@@ -167,31 +167,32 @@ function prepararAudioExperiencia(sonidos) {
   }
 
   async function reproducirEfecto(ruta, origen, volumen, inmediato = false) {
-    if (!ruta || !enRecorrido || !desbloquear()) return;
+    if (!ruta || !enRecorrido || !desbloquear()) return false;
     const turno = ++turnoEfecto;
     pendiente = origen;
     if (efecto && !inmediato) {
       fundir(canales.efectos.gain, 0, 0.3);
       await esperar(300);
     }
-    if (turno !== turnoEfecto) return;
+    if (turno !== turnoEfecto) return false;
     // El efecto anterior ya bajó a cero. El nudo entra en el cuadro de inicio de su animación.
     soltarEfecto();
     const vigente = () => turno === turnoEfecto && enRecorrido;
     const voz = await reproducir(ruta, canales.efectos, { vigente });
     if (!voz) {
       if (vigente()) pendiente = null;
-      return;
+      return false;
     }
     if (!vigente()) {
       voz.detener();
-      return;
+      return false;
     }
     pendiente = null;
     efecto = { voz, origen };
     fundir(canales.efectos.gain, volumen, 0, volumen);
     actualizarFondo();
     voz.alTerminar(() => { if (efecto?.voz === voz) { efecto = null; actualizarFondo(); } });
+    return true;
   }
 
   function paso(ruta, volumen, velocidad, vigente) {

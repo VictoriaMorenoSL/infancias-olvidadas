@@ -78,10 +78,12 @@ document.body.append(botonSonido);
 
 function iniciarSonidoRecorrido(evento) {
   if (sinSonido || presentandoFinal || evento?.target === botonSonido) return;
+  audio.desbloquear();
   audio.iniciarFondo();
   actualizarEfectosEscena();
 }
 document.addEventListener('pointerdown', iniciarSonidoRecorrido, { passive: true });
+document.addEventListener('pointerup', iniciarSonidoRecorrido, { passive: true });
 document.addEventListener('keydown', iniciarSonidoRecorrido);
 
 function precargarEscenas(indice) {
@@ -91,8 +93,8 @@ precargarEscenas(0);
 audio.precargar(SONIDOS.nudo);
 SONIDOS.pasos.forEach(ruta => audio.precargar(ruta));
 
-function reproducirNudo() {
-  audio.reproducirEfecto(SONIDOS.nudo, 'nudo', 0.5, true);
+function reproducirNudo(nudo) {
+  audio.reproducirEfecto(nudo.sonidoDeshacer || SONIDOS.nudo, 'nudo', 0.5, true);
 }
 
 function reproducirPaso() {
@@ -292,6 +294,7 @@ function construirEscena(escena, indice) {
       articulo,
       grande: Boolean(escena.nudoGrande),
       sonido: escena.sonido,
+      volumenSonido: escena.volumenSonido ?? 0.45,
       encuadre: { ...encuadres[id], espejo },
       boton,
       texto,
@@ -400,7 +403,7 @@ function abrirDato(nudo) {
   mostrarDato(nudo);
   ventana.showModal();
   ventana.querySelector('.dato').scrollTop = 0;
-  if (nudo.sonido) audio.reproducirEfecto(nudo.sonido, 'tarjeta', 0.45);
+  if (nudo.sonido) audio.reproducirEfecto(nudo.sonido, 'tarjeta', nudo.volumenSonido);
   else audio.detenerEfecto(0.6);
 }
 
@@ -805,9 +808,6 @@ function avanzar(tiempo) {
       }
       jugador.pies = destino ? destino.y : area.suelo;
       jugador.apoyo = destino ? destino.soporte : recorrido;
-      if (ultimaEscenaSonora && destino?.nudo !== ultimaEscenaSonora.nudo) {
-        audio.detenerEfecto(0.6, ultimaEscenaSonora);
-      }
       jugador.velocidadY = 0;
     } else {
       const techo = limite ? piesMinimos(limite) : area.altoPersonaje;
@@ -1050,7 +1050,7 @@ async function reiniciarAnimacionAnclada(ruta) {
 
 async function animarNudo(nudo) {
   if (movimientoReducido.matches) {
-    reproducirNudo();
+    reproducirNudo(nudo);
     return true;
   }
 
@@ -1083,7 +1083,7 @@ async function animarNudo(nudo) {
     nudo.boton.classList.add('en-animacion');
     personaje.classList.add('fuera-de-escena');
     imagen.hidden = false;
-    reproducirNudo();
+    reproducirNudo(nudo);
     mostrarDolor(nudo);
     actualizarHilos();
     const duracion = nudo.animacionAnclada || rutaUnica ? nudo.duracion : nudo.duracion - 40;
@@ -1228,6 +1228,7 @@ ventana.addEventListener('click', evento => {
 const ilustraciones = recorrido.querySelectorAll('[data-animacion-narrativa]');
 const figurasVisibles = new Set();
 const escenasEscuchadas = new Set();
+const escenasSonorasPendientes = new Set();
 let ultimaEscenaSonora;
 
 function actualizarEfectosEscena() {
@@ -1240,11 +1241,14 @@ function actualizarEfectosEscena() {
   if (!elegibles || !audio.puedeSonar) return;
   const escena = escenas.find(({ figura, articulo, nudo }) => figurasVisibles.has(figura) &&
     !articulo.hidden && articulo.dataset.lectura !== 'hilo' && nudo.sonido &&
-    !escenasEscuchadas.has(articulo));
+    !escenasEscuchadas.has(articulo) && !escenasSonorasPendientes.has(articulo));
   if (!escena) return;
-  escenasEscuchadas.add(escena.articulo);
+  escenasSonorasPendientes.add(escena.articulo);
   ultimaEscenaSonora = escena;
-  audio.reproducirEfecto(escena.nudo.sonido, escena, 0.45);
+  audio.reproducirEfecto(escena.nudo.sonido, escena, escena.nudo.volumenSonido).then(reproducido => {
+    escenasSonorasPendientes.delete(escena.articulo);
+    if (reproducido) escenasEscuchadas.add(escena.articulo);
+  });
 }
 const elementosLecturaVisibles = new Set();
 

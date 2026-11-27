@@ -79,6 +79,7 @@ const CONTENIDO = (() => {
     {
       id: "escena-2",
       sonido: "./assets/audios/guardia.mp3",
+      volumenSonido: 0.65,
       titulo: "Castigos",
       lado: "izquierda",
       estiloRelato: { wght: 500, SEIS: 100 },
@@ -220,6 +221,7 @@ const CONTENIDO = (() => {
     },
     {
       id: "escena-8",
+      sonido: "./assets/audios/ninos-armas-corto.mp3",
       titulo: "Códigos",
       lado: "izquierda",
       estiloRelato: { wght: 400, SEIS: 100 },
@@ -252,6 +254,7 @@ const CONTENIDO = (() => {
       ilustracion: { fija: './assets/web/nudo-final.png', alt: 'Una madeja de hilo enredado', posicion: 'nudo' },
       nudo: {
         id: "nudo-9",
+        sonidoDeshacer: "./assets/audios/guardia.mp3",
         imagen: './assets/web/nudo-final.png',
         marcaImagen: { x: 0.49, y: 0.053 },
         titulo: "La edad del reclutamiento",
