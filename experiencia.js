@@ -1221,6 +1221,12 @@ function iniciarEntrada() {
   setTimeout(() => {
     documento.classList.remove('esperando-nudo');
     actualizarHilos();
+    if (!movimientoReducido.matches) {
+      const { entrada, enredado } = escenas[0].nudo.capasHilo;
+      [entrada, enredado].forEach(capa => {
+        capa.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 700, easing: 'ease-out' });
+      });
+    }
     actualizarNudoCercano();
   }, 2000);
   setTimeout(() => {
