@@ -115,6 +115,8 @@ function avanzarRevelado(revelado, x, y, completar) {
   return revelado.completo;
 }
 
+const pasosCurvaFinal = 8;
+
 function crearDesvioHilo(recurso, id) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = etiqueta => document.createElementNS(ns, etiqueta);
@@ -136,7 +138,7 @@ function crearDesvioHilo(recurso, id) {
   mascara.append(guia);
   const imagen = svg('g');
   imagen.setAttribute('mask', `url(#${mascara.id})`);
-  const segmentos = Array.from({ length: 5 }, () => {
+  const segmentos = Array.from({ length: 4 + pasosCurvaFinal }, () => {
     const tramo = svg('image');
     tramo.setAttribute('href', recurso.archivo);
     tramo.setAttribute('width', recurso.ancho);
@@ -150,16 +152,22 @@ function crearDesvioHilo(recurso, id) {
 }
 
 function colocarDesvioHilo(revelado, recurso, inicio, fin, ancho, textoArriba) {
-  const margen = 8;
+  const carril = ancho - 8;
   const giro = Math.max(inicio.y, Math.min(inicio.y + 23, textoArriba - 7));
+  const radioX = Math.min(40, (carril - fin.x) / 2);
+  const radioY = 34;
+  // El tramo vertical gira hacia el nudo con tangentes continuas.
   const puntos = [
     inicio,
-    { x: ancho - margen - 9, y: giro },
-    { x: ancho - margen, y: giro + 12 },
-    { x: ancho - margen, y: fin.y - 34 },
-    { x: ancho - margen - 11, y: fin.y - 20 },
-    fin,
+    { x: carril - 9, y: giro },
+    { x: carril, y: giro + 12 },
+    { x: carril, y: fin.y - radioY },
   ];
+  for (let paso = 1; paso <= pasosCurvaFinal; paso += 1) {
+    const avance = paso / pasosCurvaFinal;
+    puntos.push({ x: carril - radioX * avance ** 2, y: fin.y - radioY * (1 - avance) ** 2 });
+  }
+  puntos.push(fin);
   const y = inicio.y - 6;
   const alto = fin.y - y + 8;
   const { capa, dibujo, mascara, guia, segmentos } = revelado;

@@ -8,7 +8,29 @@ const fuentesPorId = {
   escena7: {nombre: "Reinserta (vía SDP Noticias)", anio: 2021, url: "https://www.sdpnoticias.com/mexico/reinserta-analiza-reclutamiento-de-menores-por-parte-de-la-delincuencia-organizada/"},
   escena8: {nombre: "Reinserta, datos de 2022 (vía Infobae)", anio: 2026, url: "https://www.infobae.com/mexico/2026/08/05/reinserta-exige-tipificar-como-delito-en-mexico-el-reclutamiento-de-menores-por-el-crimen-organizado/"},
 };
-const FUENTES = Object.values(fuentesPorId);
+const SONIDOS = {
+  fondo: './assets/audios/fondo-bucle.mp3',
+  final: './assets/audios/final-bucle.mp3',
+  nudo: './assets/audios/deshacer-nudo.mp3',
+  pasos: ['./assets/audios/paso-1.mp3', './assets/audios/paso-2.mp3'],
+};
+const FUENTES = [
+  ...Object.values(fuentesPorId),
+  { grupo: 'Sonido', nombre: 'orfanato.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'guardia.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'escape-desconocido.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'ninos-armas.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'telefono.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'sombrero-aplaudiendo.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'fondo.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: 'final.mp3' }, // PENDIENTE: autor y enlace.
+  { grupo: 'Sonido', nombre: '“walking”, wolfdoctor (Pixabay)' }, // PENDIENTE: enlace de la grabación.
+  {
+    grupo: 'Sonido',
+    nombre: '“Tying Knot Rope”, sdking79 (Pixabay)',
+    url: 'https://pixabay.com/sound-effects/film-special-effects-tying-knot-rope-198087/',
+  },
+];
 
 const CONTENIDO = (() => {
   const hiloOrfanato = {
@@ -33,8 +55,10 @@ const CONTENIDO = (() => {
   const escenas = [
     {
       id: "orfanato",
+      sonido: "./assets/audios/orfanato-corto.mp3",
       titulo: "El orfanato",
       lado: "derecha",
+      estiloRelato: { wght: 400, SEIS: 50 },
       relato: "<strong>Tu familia te abandonó</strong> en un lugar desconocido junto con otros niños sin sus padres y guardias amenazantes.",
       ilustracion: {
         fija: './assets/web/orfanato-transparente-fijo.png',
@@ -46,7 +70,7 @@ const CONTENIDO = (() => {
         id: "primer-nudo",
         titulo: "Orfanatos sin registro",
         dato: {
-          texto: "En México existen orfanatos clandestinos que maneja el narco, y no hay datos sobre cuántos existen.",
+          texto: "Nadie sabe cuántos orfanatos clandestinos maneja el narco: no hay registros sobre ellos. Tampoco sobre los niños que terminan reclutados.",
           contexto: {cifra: "0", texto: "cifras oficiales sobre cuántas niñas, niños y adolescentes han sido reclutados por la delincuencia organizada."},
           fuente: fuentesPorId.redim,
         },
@@ -54,8 +78,10 @@ const CONTENIDO = (() => {
     },
     {
       id: "escena-2",
+      sonido: "./assets/audios/guardia.mp3",
       titulo: "Castigos",
       lado: "izquierda",
+      estiloRelato: { wght: 500, SEIS: 100 },
       relato: "Un día <strong>un guardia mata a uno de tus amigos</strong> frente a todos por desobedecer, así que decides que es hora de escapar.",
       ilustracion: {
         fija: './assets/web/guardia-fijo.png',
@@ -78,8 +104,10 @@ const CONTENIDO = (() => {
     },
     {
       id: "escena-3",
+      sonido: "./assets/audios/escape-desconocido.mp3",
       titulo: "Territorios compartidos",
       lado: "derecha",
+      estiloRelato: { wght: 400, SEIS: 0 },
       relato: "Escapas y un desconocido te da asilo, pero con un alto costo que <strong>arriesgaría tu vida</strong>.",
       ilustracion: {
         fija: './assets/web/casa-fijo.png',
@@ -91,14 +119,16 @@ const CONTENIDO = (() => {
         id: "nudo-3",
         titulo: "Territorios compartidos",
         dato: {
-          texto: "En un mismo estado o zona metropolitana pueden coincidir organizaciones de alcance nacional o regional junto con grupos locales más pequeños.",
+          texto: "Escapar no siempre es salir. En un mismo estado pueden operar al mismo tiempo cárteles nacionales, grupos regionales y bandas locales: huir de uno puede significar caer en manos de otro.",
         },
       },
     },
     {
       id: "escena-4",
+      sonido: "./assets/audios/ninos-armas-corto.mp3",
       titulo: "Mulas y patrullas",
       lado: "izquierda",
+      estiloRelato: { wght: 400, SEIS: 0 },
       relato: "Empiezas a transportar mochilas con droga, mientras observas cómo a <strong>niños más grandes los llevan a lugares portando armas</strong>.",
       ilustracion: {
         fija: './assets/web/grupo-ninos-fijo.png',
@@ -120,8 +150,10 @@ const CONTENIDO = (() => {
     },
     {
       id: "escena-5",
+      sonido: "./assets/audios/telefono-corto.mp3",
       titulo: "Rechazo",
       lado: "derecha",
+      estiloRelato: { wght: 500, SEIS: 50 },
       relato: "Te dan la opción de salir o seguir en el negocio, por lo que decides salir. Intentas comunicarte con tu familia, pero <strong>te rechazan y terminas en la calle</strong>.",
       ilustracion: {
         fija: './assets/web/telefono-fijo.png',
@@ -145,6 +177,7 @@ const CONTENIDO = (() => {
       id: "escena-6",
       titulo: "La calle",
       lado: "izquierda",
+      estiloRelato: { wght: 400, SEIS: 0 },
       relato: "La calle se vuelve tu hogar y encuentras una familia en quien apoyarte, pero mientras trabajas como lavacoches, un hombre te ofrece un nuevo <strong>trabajo con una mejor paga</strong>.",
       ilustracion: {
         fija: './assets/web/hombre-sombrero-fijo.png',
@@ -164,8 +197,10 @@ const CONTENIDO = (() => {
     },
     {
       id: "escena-7",
+      sonido: "./assets/audios/sombrero-aplaudiendo.mp3",
       titulo: "Pertenecer",
       lado: "derecha",
+      estiloRelato: { wght: 400, SEIS: 0 },
       relato: "Ese hombre empieza a darte la validación que no lograste tener de tu familia y te convence de entrar a su <strong>grupo delictivo</strong>, dándote por fin <strong>la sensación de ser alguien</strong>.",
       ilustracion: {
         fija: './assets/web/aplauso-fijo.png',
@@ -187,6 +222,7 @@ const CONTENIDO = (() => {
       id: "escena-8",
       titulo: "Códigos",
       lado: "izquierda",
+      estiloRelato: { wght: 400, SEIS: 100 },
       relato: "Te entrenan para <strong>matar</strong>, pero bajo ciertos códigos. Tu determinación de valer algo en el grupo es tan grande que el hombre que te reclutó te reconoce como uno de los mejores, teniendo solo <strong>12 años</strong>.",
       ilustracion: {
         fija: './assets/web/pistola-fijo.png',
@@ -198,7 +234,7 @@ const CONTENIDO = (() => {
         id: "nudo-8",
         titulo: "Códigos",
         dato: {
-          texto: "Dependiendo del grupo delictivo, les enseñan códigos como no matar a niños, a mujeres embarazadas ni a personas que “no la deben”.",
+          texto: "Dependiendo del grupo delictivo, les enseñan códigos como no matar a niños, a mujeres embarazadas ni a personas que “no la deben”. Un niño sicario puede llegar a cometer entre 80 y 200 homicidios.",
           contexto: {cifra: "7 de cada 10", texto: "adolescentes reclutados que están en internamiento pasaron por un adiestramiento formal dentro del grupo criminal."},
           visual: "pictograma",
           visualDatos: {total: 10, marcados: 7},
@@ -210,6 +246,7 @@ const CONTENIDO = (() => {
       id: "escena-9",
       titulo: "La edad del reclutamiento",
       lado: "derecha",
+      estiloRelato: { wght: 400, SEIS: 100 },
       relato: "En una misión, la policía te atrapa y te dan una sentencia que te hace recapacitar sobre cómo quieres seguir <u>tu vida</u>…",
       nudoGrande: true, // El dibujo completo procede del primer fotograma de deshacer-nudo.gif.
       ilustracion: { fija: './assets/web/nudo-final.png', alt: 'Una madeja de hilo enredado', posicion: 'nudo' },
@@ -236,6 +273,8 @@ const CONTENIDO = (() => {
   }));
 })();
 
+
+const EQUIPO = ['Valeria Victoria Moreno San Luis', 'Paula Carolina Sánchez Martínez', 'Sherdi Sebastián Espinosa Bazet'];
 
 CONTENIDO.FINAL = {
   minimo: 145000,
@@ -276,26 +315,33 @@ CONTENIDO.FINAL = {
     nina: './assets/Imgs/nin%CC%83a.PNG',
     alt: 'Un niño y una niña sostienen un hilo sin nudos.',
   },
-  tituloFuentes: 'Fuentes',
+  tituloFuentes: 'Ver fuentes',
+  tituloDatos: 'Datos',
   historia: {
     etiqueta: 'Historia',
     nombre: 'Los Niños del Narco',
     detalle: 'Sonoro | Rainbow Lobster, 2024',
     url: 'https://podcasts.apple.com/mx/podcast/los-ni%C3%B1os-del-narco/id1746146705',
   },
+  proceso: {
+    nombre: 'Conoce nuestro proceso y otras fuentes consultadas ↗',
+    url: 'https://www.figma.com/board/eo1dbKDHwhMUu1g4RZ86Oc/Infograf%C3%ADa_Isra?node-id=0-1&t=SbODGJhJG38itQHQ-1',
+    etiqueta: 'Proceso del proyecto en Figma, abre en una pestaña nueva',
+  },
+  verCreditos: 'Ver créditos',
   saltarCreditos: 'Saltar créditos',
   tituloCreditos: 'Créditos',
   creditos: [
     { imagen: './assets/textos_infografia/titulo.svg', alt: 'Infancias olvidadas' },
     {
       etiqueta: 'Un proyecto de',
-      lineas: ['Valeria Victoria Moreno San Luis', 'Paula Carolina Sánchez Martínez', 'Sherdi Sebastián Espinosa Bazet'],
+      lineas: EQUIPO,
     },
     {
       etiqueta: 'Relato adaptado de la historia de Tacita',
       lineas: ['Podcast “Los Niños del Narco”', 'Sonoro | Rainbow Lobster, 2024'],
     },
-    { etiqueta: 'Datos', lineas: ['REDIM · Reinserta'] },
+    { etiqueta: 'Investigación y small data', lineas: EQUIPO },
     {
       etiqueta: 'Taller de Visualización de Datos e Información',
       lineas: ['Profesor Israel Aldana Molina', '2026'],

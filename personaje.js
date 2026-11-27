@@ -1,4 +1,4 @@
-function prepararPersonaje(dibujo, configuracion, movimientoReducido) {
+function prepararPersonaje(dibujo, configuracion, movimientoReducido, alPisar) {
   const cuadros = new Map();
   const original = dibujo.getAttribute('src');
   let direccion = 1;
@@ -42,6 +42,7 @@ function prepararPersonaje(dibujo, configuracion, movimientoReducido) {
     anterior = tiempo;
 
     let ruta = original;
+    let contacto = false;
     let y = 0, inclinacion = 0, sx = 1, sy = 1;
     if (!movimientoReducido.matches) {
       const sprites = cuadros.get(estado);
@@ -51,6 +52,7 @@ function prepararPersonaje(dibujo, configuracion, movimientoReducido) {
         const indice = estado === 'caminando' || estado === 'quieto'
           ? cuadro % sprites.archivos.length : Math.min(cuadro, sprites.archivos.length - 1);
         ruta = sprites.archivos[indice];
+        contacto = apoyado && estado === 'caminando' && (indice === 0 || indice === 3);
       } else if (estado === 'caminando') {
         y = -3.4 * rapidez * (0.5 - 0.5 * Math.cos(fase * Math.PI * 4.8));
         inclinacion = 3.4 * rapidez * direccion;
@@ -64,7 +66,10 @@ function prepararPersonaje(dibujo, configuracion, movimientoReducido) {
         sy = 1 + 0.015 * (0.5 - 0.5 * Math.cos(fase * Math.PI * 0.64));
       }
     }
-    if (dibujo.getAttribute('src') !== ruta) dibujo.src = ruta;
+    if (dibujo.getAttribute('src') !== ruta) {
+      dibujo.src = ruta;
+      if (contacto && visible && !document.hidden) alPisar?.();
+    }
     dibujo.style.transform = `translateY(${y}px) rotate(${inclinacion}deg) scale(${direccion * sx}, ${sy})`;
   }
 

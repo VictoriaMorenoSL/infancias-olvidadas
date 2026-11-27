@@ -11,7 +11,6 @@ const documento = document.documentElement;
 const entradas = new Map();
 const archivosAnclados = new Map();
 let numeroIntento = 0;
-const presentacionPersonaje = prepararPersonaje(dibujoPersonaje, PERSONAJE, movimientoReducido);
 const teclas = {
   ArrowLeft: 'izquierda', ArrowRight: 'derecha', ArrowUp: 'salto', Space: 'salto',
 };
@@ -49,12 +48,90 @@ const zonaPersonaje = escenas[0].nudo.boton.parentElement;
 recorrido.append(...escenas.map(({ articulo }) => articulo));
 recorrido.append(...escenas.flatMap(({ nudo }) => Object.values(nudo.capasHilo)));
 zonaPersonaje.prepend(personaje);
-const finalRecorrido = prepararFinal(CONTENIDO.FINAL, FUENTES, recorrido, movimientoReducido);
 let presentandoFinal = false;
 const punteroFino = matchMedia('(pointer: fine)');
 const ayudaTeclado = document.querySelector('.ayuda-teclado');
 const pulsoDolor = document.querySelector('.destello-dolor');
 const entradaFinal = escenas.at(-1).nudo;
+const audio = prepararAudioExperiencia(SONIDOS);
+const botonSonido = document.createElement('button');
+botonSonido.type = 'button';
+botonSonido.className = 'final-boton sonido-nudo';
+const finalRecorrido = prepararFinal(CONTENIDO.FINAL, FUENTES, recorrido, movimientoReducido, audio, botonSonido);
+let sinSonido = false;
+try { sinSonido = localStorage.getItem('infancias-sin-sonido') === '1'; } catch {}
+let siguientePaso = 0;
+
+function actualizarSonido() {
+  audio.silenciar(sinSonido);
+  botonSonido.textContent = sinSonido ? '🔇' : '🔊';
+  botonSonido.setAttribute('aria-label', sinSonido ? 'Activar sonido' : 'Silenciar sonido');
+}
+actualizarSonido();
+botonSonido.addEventListener('click', () => {
+  sinSonido = !sinSonido;
+  try { localStorage.setItem('infancias-sin-sonido', sinSonido ? '1' : '0'); } catch {}
+  actualizarSonido();
+  if (!sinSonido) iniciarSonidoRecorrido();
+});
+document.body.append(botonSonido);
+
+function iniciarSonidoRecorrido(evento) {
+  if (sinSonido || presentandoFinal || evento?.target === botonSonido) return;
+  audio.iniciarFondo();
+  actualizarEfectosEscena();
+}
+document.addEventListener('pointerdown', iniciarSonidoRecorrido, { passive: true });
+document.addEventListener('keydown', iniciarSonidoRecorrido);
+
+function precargarEscenas(indice) {
+  escenas.slice(indice, indice + 3).forEach(({ nudo }) => audio.precargar(nudo.sonido));
+}
+precargarEscenas(0);
+audio.precargar(SONIDOS.nudo);
+SONIDOS.pasos.forEach(ruta => audio.precargar(ruta));
+
+function reproducirNudo() {
+  audio.reproducirEfecto(SONIDOS.nudo, 'nudo', 0.5, true);
+}
+
+function reproducirPaso() {
+  const vigente = () => !sinSonido && !nudoEnCurso && !ventana.open && !presentandoFinal && Boolean(jugador.apoyo);
+  if (!vigente()) return;
+  const ruta = SONIDOS.pasos[siguientePaso];
+  siguientePaso = (siguientePaso + 1) % SONIDOS.pasos.length;
+  audio.paso(ruta, 0.60 + Math.random() * 0.10, 0.95 + Math.random() * 0.10, vigente);
+}
+
+const presentacionPersonaje = prepararPersonaje(dibujoPersonaje, PERSONAJE, movimientoReducido, reproducirPaso);
+
+const progreso = document.createElement('div');
+progreso.className = 'progreso-nudos';
+progreso.setAttribute('role', 'progressbar');
+progreso.setAttribute('aria-label', 'Nudos deshechos');
+progreso.setAttribute('aria-valuemin', '0');
+progreso.setAttribute('aria-valuemax', String(nudos.size));
+progreso.setAttribute('aria-valuenow', '0');
+document.body.append(progreso);
+
+function actualizarProgreso() {
+  const resueltos = escenas.filter(({ nudo }) => nudo.boton.dataset.estado === 'desenredado').length;
+  progreso.style.setProperty('--avance', `${resueltos / nudos.size * 100}%`);
+  progreso.setAttribute('aria-valuenow', String(resueltos));
+}
+
+function releerNudo(nudo) {
+  if (!nudo.dato || nudo === entradaFinal || nudoEnCurso || ventana.open ||
+      ventana.classList.contains('cerrando') || presentandoFinal ||
+      nudo.boton.dataset.estado !== 'desenredado') return;
+  soltarControles();
+  controles.inert = true;
+  presentacionPersonaje.pausar(true);
+  abrirDato(nudo);
+  actualizarNudoCercano();
+}
+
+const vinetaFinal = recorrido.querySelector('.vineta-final');
 let tensado = false;
 let tiempoAyuda;
 
@@ -69,11 +146,28 @@ function mostrarAyudaTeclado() {
 function marcarEntradaFinal() {
   if (tensado || jugador.apoyo !== entradaFinal.apoyo) return;
   tensado = true;
+  audio.marcarEscenaFinal();
+  if (ultimaEscenaSonora) audio.detenerEfecto(0.6, ultimaEscenaSonora);
   ayudaTeclado.hidden = true;
   recorrido.append(personaje);
   recorrido.classList.add('en-suspenso');
   medirArea();
   escenas.slice(0, -1).forEach(({ articulo }) => { articulo.inert = true; });
+}
+
+function situarClaroFinal() {
+  if (!tensado || recorrido.classList.contains('recorrido-completo')) return;
+  const caja = entradaFinal.texto.getBoundingClientRect();
+  const nudo = entradaFinal.boton.getBoundingClientRect();
+  const plano = vinetaFinal.getBoundingClientRect();
+  const centro = plano.left + plano.width / 2;
+  const borde = Math.max(centro - caja.left, caja.right - centro, nudo.right - centro, area.ancho * 0.42);
+  const radioX = Math.max(plano.width * 0.52, borde / 0.60);
+  const fondo = Math.max(nudo.bottom, entradaFinal.apoyo.getBoundingClientRect().top);
+  const radioY = Math.max(radioX * 1.06, plano.height * 0.6, (fondo - caja.top) / 0.65);
+  vinetaFinal.style.setProperty('--claro-y', `${(caja.top + fondo) / 2 - plano.top}px`);
+  vinetaFinal.style.setProperty('--claro-radio-x', `${radioX}px`);
+  vinetaFinal.style.setProperty('--claro-radio-y', `${radioY}px`);
 }
 
 function mostrarDolor(nudo) {
@@ -130,6 +224,9 @@ function construirEscena(escena, indice) {
   // El relato es HTML editorial del script local, con <strong> para énfasis.
   const texto = document.createElement('span');
   texto.className = 'texto-relato';
+  const { wght, SEIS } = escena.estiloRelato;
+  texto.style.setProperty('--relato-peso', wght);
+  texto.style.setProperty('--relato-seis', SEIS);
   texto.innerHTML = escena.relato;
   parrafo.append(texto);
 
@@ -194,6 +291,7 @@ function construirEscena(escena, indice) {
       ...datosNudo,
       articulo,
       grande: Boolean(escena.nudoGrande),
+      sonido: escena.sonido,
       encuadre: { ...encuadres[id], espejo },
       boton,
       texto,
@@ -296,6 +394,14 @@ function crearVisualDato(tipo, datos, descripcion) {
 function ilustracionTarjeta(nudo) {
   const propia = nudo.dato.ilustracion;
   return propia ? { ...propia, fija: propia.fija || propia.src } : nudo.ilustracion;
+}
+
+function abrirDato(nudo) {
+  mostrarDato(nudo);
+  ventana.showModal();
+  ventana.querySelector('.dato').scrollTop = 0;
+  if (nudo.sonido) audio.reproducirEfecto(nudo.sonido, 'tarjeta', 0.45);
+  else audio.detenerEfecto(0.6);
 }
 
 function mostrarDato(nudo) {
@@ -445,6 +551,7 @@ function medirArea() {
   actualizarHilos();
   actualizarNudoCercano();
   orientarIndicacion();
+  situarClaroFinal();
 }
 
 function medirNudo(nudo, marco) {
@@ -461,7 +568,7 @@ function medirNudo(nudo, marco) {
   const escalaPersonaje = area.altoPersonaje / encuadre.alturaPersonaje;
   const escalaRegistro = (pies - y) / (encuadre.entrada.y - encuadre.nudo.y);
   const escala = Math.min(area.ancho / encuadre.ancho,
-    limitar(escalaRegistro, escalaPersonaje * 0.86, escalaPersonaje * 1.05));
+    nudo.grande ? escalaRegistro : limitar(escalaRegistro, escalaPersonaje * 0.86, escalaPersonaje * 1.05));
   const ancho = encuadre.ancho * escala;
   const izquierda = limitar(x - reflejarX(encuadre.nudo.x) * escala, 0, area.ancho - ancho);
   return {
@@ -525,6 +632,9 @@ function actualizarHilos() {
     capasHilo.salida.hidden = !resuelto || !siguiente?.posicion;
     if (!capasHilo.salida.hidden) {
       const fin = siguiente.boton.dataset.estado === 'desenredado' ? siguiente.posicion.mano
+        : siguiente.grande && siguiente.capaAnimada && !siguiente.capaAnimada.hidden ? {
+          x: siguiente.posicion.unionEntradaX, y: siguiente.posicion.arriba + 2.5,
+        }
         : siguiente.posicion.punta;
       const empalme = { x: mano.x, y: mano.y - 2.5 };
       if (hilo.salida.desvio) {
@@ -695,6 +805,9 @@ function avanzar(tiempo) {
       }
       jugador.pies = destino ? destino.y : area.suelo;
       jugador.apoyo = destino ? destino.soporte : recorrido;
+      if (ultimaEscenaSonora && destino?.nudo !== ultimaEscenaSonora.nudo) {
+        audio.detenerEfecto(0.6, ultimaEscenaSonora);
+      }
       jugador.velocidadY = 0;
     } else {
       const techo = limite ? piesMinimos(limite) : area.altoPersonaje;
@@ -792,7 +905,10 @@ function estaCerca(nudo) {
 }
 
 function mostrarIndicacion(nudo) {
-  const texto = entradaTactil ? 'Toca el nudo para deshacerlo' : 'Presiona Enter para deshacer el nudo';
+  const resuelto = nudo?.boton.dataset.estado === 'desenredado';
+  const texto = resuelto
+    ? (entradaTactil ? 'Toca para volver a leer' : 'Presiona Enter para volver a leer')
+    : (entradaTactil ? 'Toca el nudo para deshacerlo' : 'Presiona Enter para deshacer el nudo');
   if (nudo) nudo.indicacion.textContent = texto;
   avisoNudo.textContent = nudo ? texto : '';
   orientarIndicacion();
@@ -815,7 +931,7 @@ function orientarIndicacion() {
   const centroX = nudo.left + nudo.width / 2;
   const centroY = nudo.top + nudo.height / 2;
   const x = limitar(centroX - ancho / 2, marco.left + margen, marco.right - ancho - margen);
-  const base = punteroFino.matches ? innerHeight - margen : controles.getBoundingClientRect().top;
+  const base = punteroFino.matches ? progreso.getBoundingClientRect().top : controles.getBoundingClientRect().top;
   const y = limitar(centroY - alto / 2, margen, base - alto - margen);
   const posiciones = [
     ['arriba', x, nudo.top - alto - margen],
@@ -827,11 +943,12 @@ function orientarIndicacion() {
     [posiciones[2], posiciones[3]] = [posiciones[3], posiciones[2]];
   }
   const obstaculos = [tituloRecorrido.getBoundingClientRect(), texto.getBoundingClientRect(),
+    botonSonido.getBoundingClientRect(),
     ...area.obras.map(obra => ({
       left: marco.left + obra.izquierda, right: marco.left + obra.derecha,
       top: marco.top + obra.arriba, bottom: marco.top + obra.abajo,
     }))];
-  const limiteInferior = punteroFino.matches ? innerHeight - 12 : controles.getBoundingClientRect().top;
+  const limiteInferior = base;
   let mejor;
   for (const [lado, izquierda, arriba] of posiciones) {
     const derecha = izquierda + ancho;
@@ -857,7 +974,8 @@ function actualizarNudoCercano() {
   if (pendiente?.avisoTope && nudoListo(pendiente)) temblarTope(pendiente);
   const disponible = !nudoEnCurso && !ventana.open && !documento.classList.contains('esperando-nudo');
   const siguiente = disponible ? [...nudos.values()].find(nudo =>
-    nudo.boton.dataset.estado === 'enredado' && nudoListo(nudo) && estaCerca(nudo)) : undefined;
+    (nudo.boton.dataset.estado === 'enredado' || (nudo.dato && nudo !== entradaFinal)) &&
+    nudoListo(nudo) && estaCerca(nudo)) : undefined;
   if (nudoCercano === siguiente) return;
   nudoCercano?.boton.removeAttribute('data-disponible');
   nudoCercano?.capasHilo.enredado.removeAttribute('data-disponible');
@@ -931,7 +1049,10 @@ async function reiniciarAnimacionAnclada(ruta) {
 }
 
 async function animarNudo(nudo) {
-  if (movimientoReducido.matches) return true;
+  if (movimientoReducido.matches) {
+    reproducirNudo();
+    return true;
+  }
 
   const [rutaUnica] = await Promise.all([
     nudo.animacionAnclada ? reiniciarAnimacionAnclada(nudo.animacionAnclada) : unaVuelta(nudo.animacion),
@@ -962,6 +1083,7 @@ async function animarNudo(nudo) {
     nudo.boton.classList.add('en-animacion');
     personaje.classList.add('fuera-de-escena');
     imagen.hidden = false;
+    reproducirNudo();
     mostrarDolor(nudo);
     actualizarHilos();
     const duracion = nudo.animacionAnclada || rutaUnica ? nudo.duracion : nudo.duracion - 40;
@@ -992,13 +1114,25 @@ function resolverNudo(nudo) {
   nudoConPose = nudo;
   personaje.classList.add('fuera-de-escena');
   nudo.boton.dataset.estado = 'desenredado';
-  nudo.boton.setAttribute('aria-disabled', 'true');
-  nudo.boton.setAttribute('aria-label', nudo.titulo + ' desenredado');
+  nudo.boton.tabIndex = -1;
+  if (nudo.dato && nudo !== entradaFinal) {
+    nudo.boton.setAttribute('aria-label', 'Volver a leer: ' + nudo.titulo);
+  } else nudo.boton.setAttribute('aria-disabled', 'true');
+  actualizarProgreso();
+  if (nudo === entradaFinal) {
+    progreso.classList.add('progreso-oculto');
+    progreso.inert = true;
+  }
   nudo.continuacion.forEach(elemento => elemento.removeAttribute('hidden'));
+  if (nudo !== entradaFinal) precargarEscenas(escenas.findIndex(escena => escena.nudo === nudo) + 1);
   medirArea();
 }
 
 async function activarNudo(nudo) {
+  if (nudo.boton.dataset.estado === 'desenredado') {
+    if (estaCerca(nudo)) releerNudo(nudo);
+    return;
+  }
   if (nudoEnCurso || ventana.open || nudo.boton.dataset.estado !== 'enredado' || !nudoListo(nudo)) return;
   if (!estaCerca(nudo)) {
     aviso.textContent = 'Acércate al nudo para deshacerlo.';
@@ -1006,6 +1140,8 @@ async function activarNudo(nudo) {
   }
 
   nudoEnCurso = nudo;
+  if (!sinSonido) audio.desbloquear();
+  if (ultimaEscenaSonora) audio.detenerEfecto(0.3, ultimaEscenaSonora);
   controles.inert = true;
   soltarControles();
   presentacionPersonaje.pausar(true);
@@ -1026,6 +1162,7 @@ async function activarNudo(nudo) {
   if (nudo === entradaFinal) {
     nudoEnCurso = null;
     presentandoFinal = true;
+    audio.terminarRecorrido();
     finalRecorrido.iniciar({
       sprite: dibujoPersonaje.getAttribute('src'),
       origen: () => personaje.getBoundingClientRect(),
@@ -1034,9 +1171,7 @@ async function activarNudo(nudo) {
     });
     return;
   }
-  mostrarDato(nudo);
-  ventana.showModal();
-  ventana.querySelector('.dato').scrollTop = 0;
+  abrirDato(nudo);
   nudoEnCurso = null;
 }
 
@@ -1044,6 +1179,7 @@ nudos.forEach(nudo => nudo.boton.addEventListener('click', () => activarNudo(nud
 async function cerrarTarjeta(evento) {
   evento.preventDefault();
   if (!ventana.open || ventana.classList.contains('cerrando')) return;
+  audio.detenerEfecto(0.6, 'tarjeta');
   if (!movimientoReducido.matches) {
     ventana.classList.add('cerrando');
     const salida = ventana.getAnimations().find(animacion => animacion.animationName === 'salida-tarjeta');
@@ -1091,6 +1227,25 @@ ventana.addEventListener('click', evento => {
 
 const ilustraciones = recorrido.querySelectorAll('[data-animacion-narrativa]');
 const figurasVisibles = new Set();
+const escenasEscuchadas = new Set();
+let ultimaEscenaSonora;
+
+function actualizarEfectosEscena() {
+  const elegibles = !document.hidden && !ventana.open && !presentandoFinal && !nudoEnCurso &&
+    !documento.classList.contains('esperando-ilustracion') && !tensado;
+  if (ultimaEscenaSonora && (!figurasVisibles.has(ultimaEscenaSonora.figura) || ultimaEscenaSonora.articulo.hidden)) {
+    audio.detenerEfecto(0.6, ultimaEscenaSonora);
+    ultimaEscenaSonora = undefined;
+  }
+  if (!elegibles || !audio.puedeSonar) return;
+  const escena = escenas.find(({ figura, articulo, nudo }) => figurasVisibles.has(figura) &&
+    !articulo.hidden && articulo.dataset.lectura !== 'hilo' && nudo.sonido &&
+    !escenasEscuchadas.has(articulo));
+  if (!escena) return;
+  escenasEscuchadas.add(escena.articulo);
+  ultimaEscenaSonora = escena;
+  audio.reproducirEfecto(escena.nudo.sonido, escena, 0.45);
+}
 const elementosLecturaVisibles = new Set();
 
 function nudoListo(nudo) {
@@ -1138,6 +1293,7 @@ function actualizarLecturas() {
 }
 
 function actualizarIlustraciones() {
+  actualizarEfectosEscena();
   for (const figura of ilustraciones) {
     const activa = figurasVisibles.has(figura) && !movimientoReducido.matches &&
       !document.hidden && !ventana.open && !presentandoFinal && !nudoEnCurso &&
@@ -1260,7 +1416,10 @@ document.addEventListener('visibilitychange', () => {
 
 medirArea();
 // Las webfonts pueden cambiar la altura de los relatos al cargar o al abrir otra escena.
-window.addEventListener('scroll', orientarIndicacion, { passive: true });
+window.addEventListener('scroll', () => {
+  orientarIndicacion();
+  situarClaroFinal();
+}, { passive: true });
 document.fonts.ready.then(medirArea);
 document.fonts.addEventListener('loadingdone', medirArea);
 const observadorArea = new ResizeObserver(medirArea);

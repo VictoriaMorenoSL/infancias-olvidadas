@@ -1,4 +1,4 @@
-function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
+function prepararFinal(datos, fuentes, recorrido, movimientoReducido, audio, botonSonido) {
   function elemento(etiqueta, clase, texto) {
     const nodo = document.createElement(etiqueta);
     if (clase) nodo.className = clase;
@@ -50,29 +50,52 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
     arte.append(imagen(datos.imagen.nino, 'epilogo-nino'), imagen(datos.imagen.nina, 'epilogo-nina'),
       imagen(datos.hilo, 'epilogo-hilo-manos'));
   }
-  cierre.append(arte);
+  const verCreditos = elemento('button', 'final-boton final-secundario epilogo-ver-creditos', datos.verCreditos);
+  verCreditos.type = 'button';
+  cierre.append(arte, verCreditos);
 
   const fuentesVisibles = fuentes.filter(fuente => fuente.nombre);
-  if (fuentesVisibles.length || datos.historia?.nombre) {
-    const lista = elemento('ul', 'epilogo-fuentes');
+  if (fuentesVisibles.length || datos.historia?.nombre || datos.proceso?.url) {
+    const detalles = elemento('details', 'epilogo-detalles');
+    detalles.append(elemento('summary', 'final-boton final-secundario', datos.tituloFuentes));
+    const panelFuentes = elemento('div', 'epilogo-fuentes');
     if (datos.historia?.nombre) {
       const { etiqueta, nombre, url, detalle } = datos.historia;
-      const item = elemento('li');
-      if (etiqueta) item.append(elemento('strong', '', etiqueta), ' · ');
+      const item = elemento('p');
       item.append(url ? enlace({ nombre, url }, '', true) : nombre);
       if (detalle) item.append(` (${detalle})`);
-      lista.append(item);
+      panelFuentes.append(elemento('h2', '', etiqueta), item);
     }
-    for (const { nombre, anio, url } of fuentesVisibles) {
-      const etiqueta = anio ? `${nombre} (${anio})` : nombre;
-      const item = elemento('li', '', url ? '' : etiqueta);
-      if (url) item.append(enlace({ nombre: etiqueta, url }, '', true));
-      lista.append(item);
+    if (fuentesVisibles.length) {
+      const grupos = new Map();
+      for (const fuente of fuentesVisibles) {
+        const grupo = fuente.grupo || datos.tituloDatos;
+        if (!grupos.has(grupo)) grupos.set(grupo, []);
+        grupos.get(grupo).push(fuente);
+      }
+      for (const [grupo, referencias] of grupos) {
+        const lista = elemento('ul');
+        for (const { nombre, anio, url } of referencias) {
+          const etiqueta = anio ? `${nombre} (${anio})` : nombre;
+          const item = elemento('li');
+          item.append(url ? enlace({ nombre: etiqueta, url }, '', true) : etiqueta);
+          lista.append(item);
+        }
+        panelFuentes.append(elemento('h2', '', grupo), lista);
+      }
     }
-    cierre.append(elemento('h2', '', datos.tituloFuentes), lista);
+    if (datos.proceso?.url) {
+      const proceso = enlace(datos.proceso, 'epilogo-proceso', true);
+      proceso.setAttribute('aria-label', datos.proceso.etiqueta);
+      panelFuentes.append(proceso);
+    }
+    detalles.append(panelFuentes);
+    cierre.append(detalles);
   }
 
-  cierre.append(enlace(datos.volver, 'final-boton'));
+  const reiniciar = enlace(datos.volver, 'final-boton');
+  reiniciar.addEventListener('click', audio.detener);
+  cierre.append(reiniciar);
   epilogo.append(cierre);
   recorrido.append(epilogo);
 
@@ -114,6 +137,9 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
   let alTerminar;
   let preparandoCreditos;
   let mostrandoCreditos = false;
+  let repitiendoCreditos = false;
+  let desplazamientoCierre;
+  let indiceCredito = 0;
   let temporizadorCreditos;
   let medirPersonaje;
   let transicion;
@@ -138,7 +164,16 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
       composicion.append(mensaje);
       texto.append(composicion);
     } else {
-      texto.append(elemento('p', '', formatear(datos.textos[paso])));
+      const mensaje = elemento('p', paso > 0 ? 'final-mensaje-largo' : '');
+      const [inicio, minimo, enlaceCifras, maximo, resto] = datos.textos[paso].split(/(\{minimo\})(.+?)(\{maximo\})/);
+      mensaje.append(formatear(inicio));
+      if (minimo) {
+        const rango = elemento('span', 'final-rango');
+        rango.append(elemento('strong', 'final-cifra', formatear(minimo)), enlaceCifras,
+          elemento('strong', 'final-cifra', formatear(maximo)));
+        mensaje.append(rango, formatear(resto));
+      }
+      texto.append(mensaje);
     }
     if (!movimientoReducido.matches) {
       texto.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 });
@@ -184,13 +219,20 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
     panel.classList.add('final-oculto');
     continuar.disabled = true;
     texto.textContent = formatear(datos.textos[0]);
+    escena.append(botonSonido);
     escena.showModal();
-    campo.iniciar();
+    let zoom;
     if (!movimientoReducido.matches) {
-      marco.animate([{ opacity: 0.06 }, { opacity: 1 }], { duration: 1600, easing: 'ease-out' });
       transicion = animarPersonaje(false);
-      await esperarAnimacion(transicion);
+      zoom = esperarAnimacion(transicion);
     }
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    campo.iniciar();
+    audio.iniciar();
+    if (!movimientoReducido.matches) {
+      marco.animate([{ opacity: 0.06 }, { opacity: 1 }], { duration: 500, easing: 'ease-out' });
+    }
+    await zoom;
     doble.hidden = true;
     campo.resaltar(true);
     transicion?.cancel();
@@ -231,6 +273,10 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
     escena.removeAttribute('aria-labelledby');
     escena.setAttribute('aria-label', datos.tituloCreditos);
     preparandoCreditos();
+    iniciarCreditos();
+  }
+
+  function iniciarCreditos() {
     panelCreditos.hidden = false;
     mostrandoCreditos = true;
     mostrarCreditos();
@@ -239,6 +285,7 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
 
   function mostrarCreditos(indice = 0) {
     clearTimeout(temporizadorCreditos);
+    indiceCredito = indice;
     const apilados = movimientoReducido.matches;
     saltar.textContent = apilados ? datos.continuar : datos.saltarCreditos;
     creditos.forEach((credito, i) => { credito.hidden = !apilados && indice !== i; });
@@ -254,27 +301,44 @@ function prepararFinal(datos, fuentes, recorrido, movimientoReducido) {
     if (!mostrandoCreditos) return;
     mostrandoCreditos = false;
     clearTimeout(temporizadorCreditos);
+    audio.salir();
+    botonSonido.hidden = true;
     epilogo.hidden = false;
+    epilogo.classList.add('epilogo-aparece');
     escena.close();
-    alTerminar();
+    panelCreditos.hidden = true;
+    if (repitiendoCreditos) {
+      repitiendoCreditos = false;
+      window.scrollTo({ top: desplazamientoCierre, behavior: 'instant' });
+      verCreditos.focus({ preventScroll: true });
+    } else alTerminar();
   }
 
+  verCreditos.addEventListener('click', () => {
+    desplazamientoCierre = window.scrollY;
+    repitiendoCreditos = true;
+    epilogo.classList.remove('epilogo-aparece');
+    botonSonido.hidden = false;
+    escena.showModal();
+    audio.iniciar(2);
+    iniciarCreditos();
+  });
   saltar.addEventListener('click', terminarCreditos);
   continuar.addEventListener('click', avanzar);
   escena.addEventListener('cancel', evento => evento.preventDefault());
   escena.addEventListener('keydown', evento => {
     if (mostrandoCreditos || !['Enter', 'NumpadEnter', 'Space'].includes(evento.code)) return;
-    if (evento.target.closest('a')) return;
+    if (evento.target.closest('a, .sonido-nudo')) return;
     evento.preventDefault();
     evento.stopPropagation();
     if (!evento.repeat) avanzar();
   });
   escena.addEventListener('keyup', evento => {
-    if (!mostrandoCreditos && evento.code === 'Space') evento.preventDefault();
+    if (!mostrandoCreditos && evento.code === 'Space' && !evento.target.closest('.sonido-nudo')) evento.preventDefault();
   });
   movimientoReducido.addEventListener('change', () => {
     if (movimientoReducido.matches) transicion?.cancel();
-    if (mostrandoCreditos) mostrarCreditos();
+    if (mostrandoCreditos) mostrarCreditos(indiceCredito);
   });
 
   return { iniciar, epilogo };
