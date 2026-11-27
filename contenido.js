@@ -16,20 +16,7 @@ const SONIDOS = {
 };
 const FUENTES = [
   ...Object.values(fuentesPorId),
-  { grupo: 'Sonido', nombre: 'orfanato.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'guardia.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'escape-desconocido.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'ninos-armas.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'telefono.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'sombrero-aplaudiendo.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'fondo.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: 'final.mp3' }, // PENDIENTE: autor y enlace.
-  { grupo: 'Sonido', nombre: '“walking”, wolfdoctor (Pixabay)' }, // PENDIENTE: enlace de la grabación.
-  {
-    grupo: 'Sonido',
-    nombre: '“Tying Knot Rope”, sdking79 (Pixabay)',
-    url: 'https://pixabay.com/sound-effects/film-special-effects-tying-knot-rope-198087/',
-  },
+  { grupo: 'Sonido', nombre: 'Efectos de sonido y música: Pixabay' },
 ];
 
 const CONTENIDO = (() => {

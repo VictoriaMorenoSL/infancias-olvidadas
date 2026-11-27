@@ -190,7 +190,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
   margin-inline-start: 3cqi;
 }
 .nudo-grande .nudo-fijo { display: block; }
-.indicacion-nudo, .aviso-juego:not(:empty) {
+.indicacion-nudo, .controles-juego .indicacion-fija, .aviso-juego:not(:empty) {
   padding: 6px 14px;
   border-radius: 1.25rem;
   color: #eee;
@@ -221,22 +221,16 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
   left: calc(var(--pico-x) - 5px);
   border-top-color: rgba(25, 25, 25, 0.78);
 }
-.indicacion-nudo[data-lado="abajo"]::after {
-  bottom: 100%;
-  left: calc(var(--pico-x) - 5px);
-  border-bottom-color: rgba(25, 25, 25, 0.78);
+.nudo[data-disponible] .indicacion-nudo[data-lado="arriba"] { opacity: 1; }
+.controles-juego .indicacion-fija {
+  position: absolute;
+  inset: auto auto calc(100% + 6px + var(--separacion-aviso, 0px)) 50%;
+  translate: -50% 0;
+  inline-size: max-content;
+  max-inline-size: calc(100% - 24px);
+  min-block-size: 32px;
+  pointer-events: auto;
 }
-.indicacion-nudo[data-lado="derecha"]::after {
-  right: 100%;
-  top: calc(var(--pico-y) - 5px);
-  border-right-color: rgba(25, 25, 25, 0.78);
-}
-.indicacion-nudo[data-lado="izquierda"]::after {
-  left: 100%;
-  top: calc(var(--pico-y) - 5px);
-  border-left-color: rgba(25, 25, 25, 0.78);
-}
-.nudo[data-disponible] .indicacion-nudo { opacity: 1; }
 @media (prefers-reduced-motion: no-preference) {
   .indicacion-nudo {
     translate: 0 4px;
@@ -1021,7 +1015,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible {
   background: #252525;
   box-shadow: 0 0 0 3px var(--papel);
 }
-.nudo[data-estado="desenredado"][data-disponible] .indicacion-nudo { pointer-events: auto; cursor: pointer; }
+.nudo[data-estado="desenredado"][data-disponible] .indicacion-nudo[data-lado="arriba"] { pointer-events: auto; cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) {
   .progreso-nudos { transition: opacity 400ms ease-out; }
   .progreso-nudos::after { transition: inline-size 500ms ease-out; }

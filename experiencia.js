@@ -4,6 +4,15 @@ const dibujoPersonaje = personaje.querySelector('.dibujo-personaje');
 const controles = document.querySelector('.controles-juego');
 const aviso = controles.querySelector('.aviso-juego');
 const avisoNudo = controles.querySelector('#aviso-nudo');
+const indicacionFija = document.createElement('button');
+indicacionFija.type = 'button';
+indicacionFija.className = 'indicacion-fija';
+indicacionFija.hidden = true;
+indicacionFija.tabIndex = -1;
+indicacionFija.addEventListener('click', () => {
+  if (nudoCercano) activarNudo(nudoCercano);
+});
+controles.append(indicacionFija);
 const ventana = document.querySelector('#ventana-nudo');
 const movimientoReducido = matchMedia('(prefers-reduced-motion: reduce)');
 let entradaTactil = matchMedia('(pointer: coarse)').matches;
@@ -276,7 +285,7 @@ function construirEscena(escena, indice) {
   boton.setAttribute('aria-label', datosNudo.etiqueta || `Deshacer: ${datosNudo.titulo}`);
   boton.querySelector('.nudo-fijo').src = datosNudo.imagen;
   const { hilo } = escena;
-  const revelado = hilo.salida.desvio ? crearDesvioHilo(hilo.salida, datosNudo.id)
+  const revelado = hilo.salida.desvio ? crearDesvioHilo(datosNudo.id)
     : crearReveladoHilo(hilo.salida, datosNudo.id);
   const capasHilo = {
     entrada: crearCapaHilo(hilo.entrada.archivo, 'tramo-hilo hilo-entrada'),
@@ -644,8 +653,12 @@ function actualizarHilos() {
         : siguiente.posicion.punta;
       const empalme = { x: mano.x, y: mano.y - 2.5 };
       if (hilo.salida.desvio) {
-        const textoArriba = nudo.texto.getBoundingClientRect().top - marco.top;
-        colocarDesvioHilo(nudo.revelado, hilo.salida, empalme, fin, area.ancho, textoArriba);
+        const bordesTexto = ({ texto }) => {
+          const caja = texto.getBoundingClientRect();
+          return { izquierda: caja.left - marco.left, arriba: caja.top - marco.top, abajo: caja.bottom - marco.top };
+        };
+        colocarDesvioHilo(nudo.revelado, hilo.salida, empalme, fin, area.ancho,
+          bordesTexto(nudo), bordesTexto(siguiente));
       } else {
         const matriz = anclarTramo(capasHilo.salida, hilo.salida, empalme, fin, escala, encuadre.espejo);
         if (nudo.revelado) medirRevelado(nudo.revelado, matriz);
@@ -916,6 +929,8 @@ function mostrarIndicacion(nudo) {
     ? (entradaTactil ? 'Toca para volver a leer' : 'Presiona Enter para volver a leer')
     : (entradaTactil ? 'Toca el nudo para deshacerlo' : 'Presiona Enter para deshacer el nudo');
   if (nudo) nudo.indicacion.textContent = texto;
+  indicacionFija.textContent = nudo ? texto : '';
+  if (!nudo) indicacionFija.hidden = true;
   avisoNudo.textContent = nudo ? texto : '';
   orientarIndicacion();
 }
@@ -928,51 +943,54 @@ function cambiarTipoEntrada(tactil) {
 
 function orientarIndicacion() {
   if (!nudoCercano) return;
-  const { boton, indicacion, texto } = nudoCercano;
+  const { boton, indicacion } = nudoCercano;
   const nudo = boton.getBoundingClientRect();
   const marco = recorrido.getBoundingClientRect();
   const ancho = indicacion.offsetWidth;
   const alto = indicacion.offsetHeight;
-  const margen = 9;
-  const centroX = nudo.left + nudo.width / 2;
-  const centroY = nudo.top + nudo.height / 2;
-  const x = limitar(centroX - ancho / 2, marco.left + margen, marco.right - ancho - margen);
-  const base = punteroFino.matches ? progreso.getBoundingClientRect().top : controles.getBoundingClientRect().top;
-  const y = limitar(centroY - alto / 2, margen, base - alto - margen);
-  const posiciones = [
-    ['arriba', x, nudo.top - alto - margen],
-    ['abajo', x, nudo.bottom + margen],
-    ['derecha', nudo.right + margen, y],
-    ['izquierda', nudo.left - ancho - margen, y],
-  ];
-  if (nudo.left - marco.left > marco.right - nudo.right) {
-    [posiciones[2], posiciones[3]] = [posiciones[3], posiciones[2]];
+  const centro = nudo.left + nudo.width / 2;
+  const margen = 10;
+  const izquierda = limitar(centro - ancho / 2, marco.left + margen, marco.right - ancho - margen);
+  const arriba = nudo.top - alto - margen;
+  const derecha = izquierda + ancho;
+  const abajo = arriba + alto + 5;
+  const vista = window.visualViewport;
+  const tope = vista?.offsetTop ?? 0;
+  const base = controles.getBoundingClientRect().top;
+  const obstaculos = [tituloRecorrido, botonSonido, personaje,
+    ...escenas.filter(escena => !escena.articulo.hidden)
+      .flatMap(escena => [escena.nudo.texto, escena.figura].filter(Boolean))];
+  const libre = arriba >= tope + margen && abajo <= base && !obstaculos.some(elemento => {
+    const caja = elemento.getBoundingClientRect();
+    return caja.width && caja.height && izquierda < caja.right + 4 &&
+      derecha > caja.left - 4 && arriba < caja.bottom + 4 && abajo > caja.top - 4;
+  });
+
+  indicacion.dataset.lado = libre ? 'arriba' : 'oculta';
+  indicacionFija.hidden = libre;
+  if (!libre) {
+    indicacionFija.style.removeProperty('--separacion-aviso');
+    const aviso = indicacionFija.getBoundingClientRect();
+    // Si el texto llega hasta las flechas, se eleva el aviso solo lo necesario.
+    const lineas = obstaculos.flatMap(elemento => {
+      if (!elemento.classList.contains('texto-relato')) return [elemento.getBoundingClientRect()];
+      const rango = new Range();
+      rango.selectNodeContents(elemento);
+      return [...rango.getClientRects()];
+    }).filter(caja => caja.width && caja.height && aviso.left < caja.right + 4 && aviso.right > caja.left - 4)
+      .sort((a, b) => b.top - a.top);
+    let posicion = aviso.top;
+    for (const caja of lineas) {
+      if (posicion < caja.bottom + 4 && posicion + aviso.height > caja.top - 4) {
+        posicion = caja.top - aviso.height - 4;
+      }
+    }
+    indicacionFija.style.setProperty('--separacion-aviso', `${aviso.top - Math.max(posicion, tope + 6)}px`);
+    return;
   }
-  const obstaculos = [tituloRecorrido.getBoundingClientRect(), texto.getBoundingClientRect(),
-    botonSonido.getBoundingClientRect(),
-    ...area.obras.map(obra => ({
-      left: marco.left + obra.izquierda, right: marco.left + obra.derecha,
-      top: marco.top + obra.arriba, bottom: marco.top + obra.abajo,
-    }))];
-  const limiteInferior = base;
-  let mejor;
-  for (const [lado, izquierda, arriba] of posiciones) {
-    const derecha = izquierda + ancho;
-    const abajo = arriba + alto;
-    const fuera = Math.max(0, marco.left - izquierda, derecha - marco.right) * alto +
-      Math.max(0, -arriba, abajo - limiteInferior) * ancho;
-    const colision = obstaculos.reduce((total, rect) => total +
-      Math.max(0, Math.min(derecha, rect.right) - Math.max(izquierda, rect.left)) *
-      Math.max(0, Math.min(abajo, rect.bottom) - Math.max(arriba, rect.top)), 0);
-    const costo = fuera * 2 + colision;
-    if (!mejor || costo < mejor.costo) mejor = { lado, izquierda, arriba, costo };
-    if (costo === 0) break;
-  }
-  indicacion.dataset.lado = mejor.lado;
-  indicacion.style.left = `${mejor.izquierda - nudo.left}px`;
-  indicacion.style.top = `${mejor.arriba - nudo.top}px`;
-  indicacion.style.setProperty('--pico-x', `${limitar(centroX - mejor.izquierda, 10, ancho - 10)}px`);
-  indicacion.style.setProperty('--pico-y', `${limitar(centroY - mejor.arriba, 10, alto - 10)}px`);
+  indicacion.style.left = `${izquierda - nudo.left}px`;
+  indicacion.style.top = `${arriba - nudo.top}px`;
+  indicacion.style.setProperty('--pico-x', `${limitar(centro - izquierda, 10, ancho - 10)}px`);
 }
 
 function actualizarNudoCercano() {
@@ -982,7 +1000,10 @@ function actualizarNudoCercano() {
   const siguiente = disponible ? [...nudos.values()].find(nudo =>
     (nudo.boton.dataset.estado === 'enredado' || (nudo.dato && nudo !== entradaFinal)) &&
     nudoListo(nudo) && estaCerca(nudo)) : undefined;
-  if (nudoCercano === siguiente) return;
+  if (nudoCercano === siguiente) {
+    if (siguiente) orientarIndicacion();
+    return;
+  }
   nudoCercano?.boton.removeAttribute('data-disponible');
   nudoCercano?.capasHilo.enredado.removeAttribute('data-disponible');
   nudoCercano = siguiente;
@@ -1435,6 +1456,7 @@ window.addEventListener('scroll', () => {
   orientarIndicacion();
   situarClaroFinal();
 }, { passive: true });
+window.visualViewport?.addEventListener('resize', orientarIndicacion);
 document.fonts.ready.then(medirArea);
 document.fonts.addEventListener('loadingdone', medirArea);
 const observadorArea = new ResizeObserver(medirArea);

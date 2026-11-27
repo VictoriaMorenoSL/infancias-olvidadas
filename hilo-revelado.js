@@ -111,15 +111,12 @@ function avanzarRevelado(revelado, x, y, completar) {
   revelado.revelado = Math.max(revelado.revelado, visible);
   revelado.completo = revelado.revelado >= revelado.total;
   revelado.guia.setAttribute('stroke-dashoffset', revelado.total - revelado.revelado);
-  if (revelado.completo) revelado.imagen.removeAttribute('mask');
+  if (revelado.completo && !revelado.conservarMascara) revelado.imagen.removeAttribute('mask');
   return revelado.completo;
 }
 
-const pasosCurvaFinal = 8;
-
-function crearDesvioHilo(recurso, id) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = etiqueta => document.createElementNS(ns, etiqueta);
+function crearDesvioHilo(id) {
+  const svg = etiqueta => document.createElementNS('http://www.w3.org/2000/svg', etiqueta);
   const capa = document.createElement('div');
   capa.className = 'tramo-hilo hilo-salida hilo-hacia-final';
   capa.hidden = true;
@@ -129,78 +126,77 @@ function crearDesvioHilo(recurso, id) {
   mascara.id = `mascara-hilo-${id}`;
   mascara.setAttribute('maskUnits', 'userSpaceOnUse');
   mascara.setAttribute('maskContentUnits', 'userSpaceOnUse');
-  const guia = svg('polyline');
+  const guia = svg('path');
   guia.setAttribute('fill', 'none');
   guia.setAttribute('stroke', 'white');
-  guia.setAttribute('stroke-width', '14');
-  guia.setAttribute('stroke-linejoin', 'round');
+  guia.setAttribute('stroke-width', '8');
   guia.setAttribute('stroke-linecap', 'round');
   mascara.append(guia);
   const imagen = svg('g');
   imagen.setAttribute('mask', `url(#${mascara.id})`);
-  const segmentos = Array.from({ length: 4 + pasosCurvaFinal }, () => {
-    const tramo = svg('image');
-    tramo.setAttribute('href', recurso.archivo);
-    tramo.setAttribute('width', recurso.ancho);
-    tramo.setAttribute('height', recurso.alto);
-    return tramo;
-  });
-  imagen.append(...segmentos);
   dibujo.append(mascara, imagen);
   capa.append(dibujo);
-  return { capa, dibujo, mascara, guia, imagen, segmentos, revelado: 0, completo: false };
+  return { capa, dibujo, mascara, guia, imagen, segmentos: [],
+    conservarMascara: true, revelado: 0, completo: false };
 }
 
-function colocarDesvioHilo(revelado, recurso, inicio, fin, ancho, textoArriba) {
-  const carril = ancho - 8;
-  const giro = Math.max(inicio.y, Math.min(inicio.y + 23, textoArriba - 7));
-  const radioX = Math.min(40, (carril - fin.x) / 2);
-  const radioY = 34;
-  // El tramo vertical gira hacia el nudo con tangentes continuas.
-  const puntos = [
-    inicio,
-    { x: carril - 9, y: giro },
-    { x: carril, y: giro + 12 },
-    { x: carril, y: fin.y - radioY },
-  ];
-  for (let paso = 1; paso <= pasosCurvaFinal; paso += 1) {
-    const avance = paso / pasosCurvaFinal;
-    puntos.push({ x: carril - radioX * avance ** 2, y: fin.y - radioY * (1 - avance) ** 2 });
-  }
-  puntos.push(fin);
-  const y = inicio.y - 6;
-  const alto = fin.y - y + 8;
-  const { capa, dibujo, mascara, guia, segmentos } = revelado;
+function colocarDesvioHilo(revelado, recurso, inicio, fin, ancho, texto8, texto9) {
+  const y = inicio.y - 12;
+  const alto = fin.y - y + 12;
+  const izquierda8 = Math.max(22, texto8.izquierda - 22);
+  const izquierda9 = Math.max(22, Math.min(izquierda8, texto9.izquierda - 22));
+  const antes8 = texto8.arriba - 14 - y;
+  const despues8 = texto8.abajo + 10 - y;
+  const antes9 = texto9.arriba - 14 - y;
+  const despues9 = texto9.abajo + 13 - y;
+  const finalY = fin.y - y;
+  const { capa, dibujo, mascara, guia, imagen, segmentos } = revelado;
   capa.style.cssText = `width:${ancho}px;height:${alto}px;top:${y}px`;
   dibujo.setAttribute('viewBox', `0 0 ${ancho} ${alto}`);
   mascara.setAttribute('x', 0);
   mascara.setAttribute('y', 0);
   mascara.setAttribute('width', ancho);
   mascara.setAttribute('height', alto);
-  guia.setAttribute('points', puntos.map(punto => `${punto.x},${punto.y - y}`).join(' '));
+  guia.setAttribute('d', [
+    `M ${inicio.x} ${inicio.y - y}`,
+    `C ${inicio.x - 52} ${inicio.y - y + 3}, ${izquierda8} ${antes8 - 39}, ${izquierda8} ${antes8}`,
+    `C ${izquierda8} ${despues8}, ${izquierda9} ${antes9 - 55}, ${izquierda9} ${antes9}`,
+    `C ${izquierda9} ${antes9 + 48}, ${izquierda9} ${despues9 - 32}, ${izquierda9} ${despues9}`,
+    `C ${izquierda9} ${finalY + 8}, ${fin.x - 70} ${finalY + 13}, ${fin.x} ${finalY}`,
+  ].join(' '));
 
-  let longitud = 0;
-  revelado.muestras = puntos.map((punto, i) => {
-    if (i) {
-      const previo = puntos[i - 1];
-      const dx = punto.x - previo.x;
-      const dy = punto.y - previo.y;
-      const largo = Math.hypot(dx, dy);
-      const espesor = Math.max(2.5, ancho / 130) / recurso.grosor;
-      const ax = dy / largo * espesor;
-      const ay = -dx / largo * espesor;
-      const bx = dx / recurso.alto;
-      const by = dy / recurso.alto;
-      const ox = previo.x - ax * recurso.inicioX - dx / largo;
-      const oy = previo.y - y - ay * recurso.inicioX - dy / largo;
-      segmentos[i - 1].setAttribute('transform', `matrix(${ax} ${ay} ${bx * (1 + 2/largo)} ${by * (1 + 2/largo)} ${ox} ${oy})`);
-      longitud += largo;
-    }
-    return { ...punto, local: longitud, mundo: longitud };
+  const longitud = guia.getTotalLength();
+  const escala = 0.54;
+  const cantidad = Math.ceil(longitud / 19) + 1;
+  while (segmentos.length > cantidad) segmentos.pop().remove();
+  while (segmentos.length < cantidad) {
+    const tramo = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+    tramo.setAttribute('href', recurso.archivo);
+    tramo.setAttribute('width', recurso.ancho);
+    tramo.setAttribute('height', recurso.alto);
+    imagen.append(tramo);
+    segmentos.push(tramo);
+  }
+
+  // Solo se ve la tinta original. Cada muestra conserva escala uniforme y gira con la curva de la máscara.
+  segmentos.forEach((tramo, i) => {
+    const distancia = i * longitud / (cantidad - 1);
+    const centro = guia.getPointAtLength(distancia);
+    const antes = guia.getPointAtLength(Math.max(0, distancia - 2));
+    const despues = guia.getPointAtLength(Math.min(longitud, distancia + 2));
+    const angulo = Math.atan2(despues.y - antes.y, despues.x - antes.x) * 180 / Math.PI - 90;
+    tramo.setAttribute('transform', `translate(${centro.x} ${centro.y}) rotate(${angulo}) scale(${escala})
+      translate(${-recurso.inicioX} ${-recurso.alto / 2})`);
+  });
+
+  const divisiones = Math.ceil(longitud / 7);
+  revelado.muestras = Array.from({ length: divisiones + 1 }, (_, i) => {
+    const distancia = i * longitud / divisiones;
+    const punto = guia.getPointAtLength(distancia);
+    return { x: punto.x, y: punto.y + y, local: distancia, mundo: distancia };
   });
   revelado.total = longitud;
-  if (!revelado.completo) {
-    guia.setAttribute('stroke-dasharray', `${longitud} ${longitud}`);
-    guia.setAttribute('stroke-dashoffset', Math.max(0, longitud - revelado.revelado));
-  }
+  revelado.revelado = revelado.completo ? longitud : Math.min(revelado.revelado, longitud);
+  guia.setAttribute('stroke-dasharray', `${longitud} ${longitud}`);
+  guia.setAttribute('stroke-dashoffset', longitud - revelado.revelado);
 }
